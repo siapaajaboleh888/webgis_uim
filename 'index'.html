@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGIS Pemetaan Aset Bangunan Universitas Islam Madura</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
+          crossorigin=""/>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        #header {
+            background: linear-gradient(135deg, #1e7e34 0%, #28a745 100%);
+            color: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1000;
+        }
+        
+        #header h1 {
+            font-size: 22px;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+        
+        #header p {
+            font-size: 14px;
+            text-align: center;
+            opacity: 0.9;
+        }
+        
+        #map {
+            height: calc(100vh - 100px);
+            width: 100%;
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 120px;
+            right: 10px;
+            background: white;
+            padding: 15px;
+            padding-top: 35px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            max-width: 300px;
+            max-height: 70vh;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .info-panel h3 {
+            margin-bottom: 10px;
+            color: #1e7e34;
+            font-size: 16px;
+            border-bottom: 2px solid #28a745;
+            padding-bottom: 5px;
+        }
+        
+        .info-panel p {
+            font-size: 13px;
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        
+        .info-panel strong {
+            color: #333;
+        }
+        
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+            transition: background 0.3s;
+        }
+        
+        .close-btn:hover {
+            background: #c82333;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 30px;
+            right: 10px;
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        
+        .legend h4 {
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #1e7e34;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+            border: 2px solid #333;
+            border-radius: 3px;
+        }
+        
+        .leaflet-popup-content {
+            margin: 10px;
+            max-width: 250px;
+        }
+        
+        .popup-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #1e7e34;
+            margin-bottom: 8px;
+            border-bottom: 2px solid #28a745;
+            padding-bottom: 5px;
+        }
+        
+        .popup-content {
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .popup-content strong {
+            color: #333;
+        }
+        
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            z-index: 2000;
+            text-align: center;
+        }
+        
+        .loading.hidden {
+            display: none;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #28a745;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            position: fixed;
+            top: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px 20px;
+            border-radius: 8px;
+            border: 1px solid #f5c6cb;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 2001;
+            display: none;
+            max-width: 90%;
+        }
+        
+        .error-message.show {
+            display: block;
+        }
+        
+        @media (max-width: 768px) {
+            #header h1 {
+                font-size: 18px;
+            }
+            
+            #header p {
+                font-size: 12px;
+            }
+            
+            .info-panel {
+                max-width: calc(100% - 20px);
+                left: 10px;
+                right: 10px;
+                top: auto;
+                bottom: 100px;
+            }
+            
+            .legend {
+                bottom: 10px;
+                right: 10px;
+                font-size: 11px;
+            }
+            
+            .legend-color {
+                width: 15px;
+                height: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1>🗺️ WebGIS Pemetaan Aset Bangunan Universitas Islam Madura</h1>
+        <p>Sistem Informasi Geografis Berbasis Web untuk Inventarisasi Bangunan Kampus</p>
+    </div>
+    
+    <div id="map"></div>
+    
+    <div class="info-panel" id="infoPanel">
+        <button class="close-btn" onclick="closeInfoPanel()">×</button>
+        <h3>📋 Informasi Bangunan</h3>
+        <div id="infoContent">
+            <p>Klik pada bangunan untuk melihat informasi detail</p>
+        </div>
+    </div>
+    
+    <div class="legend">
+        <h4>📌 Legenda</h4>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: rgba(40, 167, 69, 0.6);"></div>
+            <span>Bangunan Kampus</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: none; border: 3px solid #ffc107;"></div>
+            <span>Batas Kampus</span>
+        </div>
+    </div>
+    
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>⏳ Memuat data peta...</p>
+    </div>
+    
+    <div class="error-message" id="errorMessage"></div>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" 
+            crossorigin=""></script>
+    
+    <script>
+        // Global variables
+        var map;
+        var bangunanLayer;
+        var batasKampusLayer;
+        var baseMaps = {};
+        var overlayMaps = {};
+        
+        // Show error message
+        function showError(message) {
+            var errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = '⚠️ ' + message;
+            errorDiv.classList.add('show');
+            setTimeout(function() {
+                errorDiv.classList.remove('show');
+            }, 5000);
+        }
+        
+        // Close info panel
+        function closeInfoPanel() {
+            document.getElementById('infoPanel').style.display = 'none';
+        }
+        
+        // Style functions
+        function batasStyle(feature) {
+            return {
+                fillColor: 'transparent',
+                fillOpacity: 0,
+                color: '#ffc107',
+                weight: 3,
+                opacity: 0.8,
+                dashArray: '10, 5'
+            };
+        }
+        
+        function bangunanStyle(feature) {
+            return {
+                fillColor: '#28a745',
+                fillOpacity: 0.6,
+                color: '#155724',
+                weight: 2,
+                opacity: 1
+            };
+        }
+        
+        // Highlight feature on hover
+        function highlightFeature(e) {
+            var layer = e.target;
+            layer.setStyle({
+                weight: 4,
+                color: '#ff0000',
+                fillOpacity: 0.8
+            });
+            if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                layer.bringToFront();
+            }
+        }
+        
+        // Reset highlight
+        function resetHighlight(e) {
+            if (bangunanLayer) {
+                bangunanLayer.resetStyle(e.target);
+            }
+        }
+        
+        // Click handler for features
+        function onEachFeature(feature, layer) {
+            layer.on({
+                mouseover: highlightFeature,
+                mouseout: resetHighlight,
+                click: function(e) {
+                    L.DomEvent.stopPropagation(e);
+                    
+                    var props = feature.properties || {};
+                    var infoPanel = document.getElementById('infoPanel');
+                    var infoContent = document.getElementById('infoContent');
+                    
+                    // Build info panel content
+                    var html = '';
+                    html += '<p><strong>🏢 Nama:</strong> ' + (props.UIM_1 || props.nama || 'N/A') + '</p>';
+                    html += '<p><strong>📊 Fungsi:</strong> ' + (props.fungsi || 'N/A') + '</p>';
+                    html += '<p><strong>🏗️ Jumlah Lantai:</strong> ' + (props.lantai || 'N/A') + '</p>';
+                    
+                    if (props.Detail_RGN) {
+                        html += '<p><strong>📝 Detail:</strong> ' + props.Detail_RGN + '</p>';
+                    }
+                    
+                    if (props.luas) {
+                        html += '<p><strong>📐 Luas:</strong> ' + props.luas + ' m²</p>';
+                    }
+                    
+                    infoContent.innerHTML = html;
+                    infoPanel.style.display = 'block';
+                    
+                    // Create popup
+                    var popupContent = '<div class="popup-title">' + (props.UIM_1 || props.nama || 'Bangunan') + '</div>';
+                    popupContent += '<div class="popup-content">';
+                    popupContent += '<p><strong>Fungsi:</strong> ' + (props.fungsi || 'N/A') + '</p>';
+                    popupContent += '<p><strong>Lantai:</strong> ' + (props.lantai || 'N/A') + '</p>';
+                    popupContent += '</div>';
+                    
+                    layer.bindPopup(popupContent).openPopup();
+                }
+            });
+        }
+        
+        // Initialize map
+        function initMap() {
+            try {
+                console.log('🗺️ Initializing WebGIS...');
+                
+                // Create map
+                map = L.map('map').setView([-7.155888, 113.457997], 17);
+                
+                // Add base maps
+                var openStreetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '© OpenStreetMap contributors'
+                });
+                
+                var googleSatellite = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+                    maxZoom: 20,
+                    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                    attribution: '© Google'
+                });
+                
+                // Add default basemap
+                openStreetMap.addTo(map);
+                
+                // Store basemaps
+                baseMaps = {
+                    "OpenStreetMap": openStreetMap,
+                    "Google Satellite": googleSatellite
+                };
+                
+                // Add scale control
+                L.control.scale({
+                    imperial: false,
+                    metric: true
+                }).addTo(map);
+                
+                // Close info panel when clicking on map background
+                map.on('click', function(e) {
+                    if (!e.originalEvent.defaultPrevented) {
+                        closeInfoPanel();
+                    }
+                });
+                
+                console.log('✅ Map initialized successfully');
+                return true;
+            } catch (error) {
+                console.error('❌ Error initializing map:', error);
+                showError('Gagal menginisialisasi peta: ' + error.message);
+                return false;
+            }
+        }
+        
+        // Load GeoJSON file
+        function loadGeoJSON(filename, callback) {
+            console.log('📥 Loading ' + filename + '...');
+            
+            fetch(filename)
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('HTTP ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(function(data) {
+                    console.log('✅ ' + filename + ' loaded (' + (data.features ? data.features.length : 0) + ' features)');
+                    callback(null, data);
+                })
+                .catch(function(error) {
+                    console.warn('⚠️ Error loading ' + filename + ':', error.message);
+                    callback(error, null);
+                });
+        }
+        
+        // Initialize application
+        function initApp() {
+            console.log('🎓 WebGIS Universitas Islam Madura');
+            console.log('📍 Koordinat Pusat: -7.155888, 113.457997');
+            
+            // Initialize map first
+            if (!initMap()) {
+                document.getElementById('loading').classList.add('hidden');
+                return;
+            }
+            
+            var loadedCount = 0;
+            var totalLayers = 2;
+            
+            function checkComplete() {
+                loadedCount++;
+                if (loadedCount >= totalLayers) {
+                    // Add layer control
+                    if (Object.keys(overlayMaps).length > 0) {
+                        L.control.layers(baseMaps, overlayMaps, {
+                            collapsed: false
+                        }).addTo(map);
+                    }
+                    
+                    // Hide loading
+                    document.getElementById('loading').classList.add('hidden');
+                    console.log('🎉 Application loaded successfully!');
+                }
+            }
+            
+            // Load batas kampus
+            loadGeoJSON('batas_kampus_uim.geojson', function(error, data) {
+                if (!error && data) {
+                    try {
+                        batasKampusLayer = L.geoJSON(data, {
+                            style: batasStyle
+                        }).addTo(map);
+                        overlayMaps["Batas Kampus"] = batasKampusLayer;
+                    } catch (e) {
+                        console.error('Error adding batas layer:', e);
+                    }
+                }
+                checkComplete();
+            });
+            
+            // Load bangunan
+            loadGeoJSON('bangunan_uim.geojson', function(error, data) {
+                if (error) {
+                    showError('Gagal memuat data bangunan. Pastikan file bangunan_uim.geojson ada di folder yang sama.');
+                    checkComplete();
+                    return;
+                }
+                
+                try {
+                    bangunanLayer = L.geoJSON(data, {
+                        style: bangunanStyle,
+                        onEachFeature: onEachFeature
+                    }).addTo(map);
+                    
+                    overlayMaps["Bangunan UIM"] = bangunanLayer;
+                    
+                    // Fit bounds to bangunan
+                    var bounds = bangunanLayer.getBounds();
+                    if (bounds.isValid()) {
+                        map.fitBounds(bounds, { padding: [50, 50] });
+                    }
+                    
+                    console.log('📊 Total bangunan: ' + data.features.length);
+                } catch (e) {
+                    console.error('Error adding bangunan layer:', e);
+                    showError('Error menampilkan data bangunan');
+                }
+                
+                checkComplete();
+            });
+        }
+        
+        // Start when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
+        }
+    </script>
+</body>
+</html>
