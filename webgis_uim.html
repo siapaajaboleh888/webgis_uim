@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGIS Pemetaan Aset Bangunan UIM</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; }
+        
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #1e7e34 0%, #28a745 100%);
+        }
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            width: 400px;
+        }
+        .login-box h2 {
+            color: #1e7e34;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .login-box p {
+            color: #666;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 600;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #28a745;
+        }
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background: #218838;
+        }
+        
+        .app-container {
+            display: none;
+        }
+        #header {
+            background: linear-gradient(135deg, #1e7e34 0%, #28a745 100%);
+            color: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #header h1 {
+            font-size: 22px;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .user-info span {
+            font-size: 14px;
+        }
+        .logout-btn {
+            padding: 8px 15px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .nav-tabs {
+            background: white;
+            display: flex;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .nav-tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .nav-tab:hover {
+            background: #f8f9fa;
+        }
+        .nav-tab.active {
+            border-bottom-color: #28a745;
+            background: #e9f7ef;
+            font-weight: bold;
+            color: #1e7e34;
+        }
+        
+        .content-section {
+            display: none;
+            padding: 0;
+        }
+        .content-section.active {
+            display: block;
+        }
+        
+        .map-container {
+            display: flex;
+            height: calc(100vh - 160px);
+            background: white;
+        }
+        #sidebar {
+            width: 350px;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        #sidebar h2 {
+            background: #28a745;
+            color: white;
+            padding: 15px;
+            margin: 0;
+        }
+        .sidebar-section {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .sidebar-section h3 {
+            color: #1e7e34;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        .stat-box {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-box .number {
+            font-size: 28px;
+            font-weight: bold;
+            display: block;
+        }
+        .stat-box .label {
+            font-size: 12px;
+            opacity: 0.9;
+            display: block;
+        }
+        .building-list {
+            list-style: none;
+        }
+        .building-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+            border-left: 4px solid #28a745;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .building-item:hover {
+            background: #e9f7ef;
+            transform: translateX(5px);
+        }
+        .building-item strong {
+            display: block;
+            color: #155724;
+            margin-bottom: 5px;
+        }
+        .building-item small {
+            color: #666;
+            font-size: 12px;
+        }
+        #map {
+            flex: 1;
+            position: relative;
+            min-height: 500px;
+        }
+        
+        .data-table-container {
+            background: white;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .table-header h2 {
+            color: #1e7e34;
+        }
+        .btn-add {
+            padding: 10px 20px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .btn-add:hover {
+            background: #218838;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table th, table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        table th {
+            background: #28a745;
+            color: white;
+        }
+        table tr:hover {
+            background: #f8f9fa;
+        }
+        .action-btn {
+            padding: 5px 10px;
+            margin-right: 5px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .btn-edit {
+            background: #ffc107;
+            color: #333;
+        }
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 30px;
+            right: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        .legend h4 {
+            margin-bottom: 10px;
+            color: #1e7e34;
+            font-size: 14px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+        .legend-color {
+            width: 25px;
+            height: 25px;
+            margin-right: 10px;
+            border: 2px solid #333;
+            border-radius: 4px;
+        }
+        
+        .info-popup {
+            max-width: 350px;
+        }
+        .info-popup h4 {
+            color: #1e7e34;
+            margin-bottom: 8px;
+            border-bottom: 2px solid #28a745;
+            padding-bottom: 5px;
+        }
+        .info-popup p {
+            margin: 5px 0;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .info-popup .detail-content {
+            max-height: 150px;
+            overflow-y: auto;
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            font-size: 12px;
+            line-height: 1.8;
+        }
+        .info-popup .btn-detail {
+            background: #28a745;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+        .info-popup .btn-detail:hover {
+            background: #218838;
+        }
+        
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 700px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        .modal-content h3 {
+            color: #1e7e34;
+            margin-bottom: 20px;
+            font-size: 24px;
+            border-bottom: 3px solid #28a745;
+            padding-bottom: 10px;
+        }
+        .modal-content .info-row {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .modal-content .info-row strong {
+            color: #1e7e34;
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        .modal-content .info-row span {
+            color: #333;
+            line-height: 1.8;
+            font-size: 13px;
+        }
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .modal-close:hover {
+            background: #c82333;
+        }
+        
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="modal-overlay" id="detailModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">×</button>
+            <h3 id="modalTitle"></h3>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <div class="login-container" id="loginPage">
+        <div class="login-box">
+            <h2>🗺️ WebGIS UIM</h2>
+            <p>Sistem Informasi Geografis Pemetaan Aset Bangunan</p>
+            <form onsubmit="return handleLogin(event)">
+                <div class="form-group">
+                    <label>👤 Username</label>
+                    <input type="text" id="username" required placeholder="Masukkan username">
+                </div>
+                <div class="form-group">
+                    <label>🔒 Password</label>
+                    <input type="password" id="password" required placeholder="Masukkan password">
+                </div>
+                <div class="form-group">
+                    <label>👥 Login Sebagai</label>
+                    <select id="userRole" required>
+                        <option value="">-- Pilih Role --</option>
+                        <option value="admin">Admin</option>
+                        <option value="user">User</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn">🔐 Login</button>
+                <p style="margin-top: 15px; text-align: center; font-size: 12px; color: #999;">
+                    Demo: admin/admin123 atau user/user123
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <div class="app-container" id="mainApp">
+        <div id="header">
+            <h1>🗺️ WebGIS Pemetaan Aset Bangunan UIM</h1>
+            <div class="user-info">
+                <span>👤 <strong id="currentUser"></strong> (<span id="currentRole"></span>)</span>
+                <button class="logout-btn" onclick="handleLogout()">🚪 Logout</button>
+            </div>
+        </div>
+
+        <div class="nav-tabs">
+            <div class="nav-tab active" onclick="switchTab('map')">🗺️ Peta Interaktif</div>
+            <div class="nav-tab" onclick="switchTab('buildings')">🏢 Data Bangunan</div>
+            <div class="nav-tab" onclick="switchTab('users')" id="tabUsers">👥 Data User</div>
+            <div class="nav-tab" onclick="switchTab('labs')">🔬 Data Lab</div>
+        </div>
+
+        <div class="content-section active" id="sectionMap">
+            <div class="map-container">
+                <div id="sidebar">
+                    <h2>📊 Database Bangunan</h2>
+                    <div class="sidebar-section">
+                        <h3>📈 Statistik</h3>
+                        <div class="stats-grid">
+                            <div class="stat-box">
+                                <span class="number" id="totalBuildings">4</span>
+                                <span class="label">Total Bangunan</span>
+                            </div>
+                            <div class="stat-box">
+                                <span class="number" id="totalBlocks">4</span>
+                                <span class="label">Total Blok</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sidebar-section">
+                        <h3>🔍 Filter</h3>
+                        <select style="width: 100%; padding: 10px; border-radius: 5px; border: 2px solid #ddd;" onchange="filterBuildings(this.value)">
+                            <option value="all">Semua Bangunan</option>
+                            <option value="gedung_a">Gedung A</option>
+                            <option value="gedung_b">Gedung B</option>
+                            <option value="gedung_c">Gedung C</option>
+                            <option value="musholla">Musholla</option>
+                        </select>
+                    </div>
+                    <div class="sidebar-section">
+                        <h3>🏢 Daftar Bangunan</h3>
+                        <ul class="building-list" id="buildingList"></ul>
+                    </div>
+                </div>
+                <div style="position: relative; flex: 1;">
+                    <div id="map"></div>
+                    <div class="legend">
+                        <h4>📌 Legenda</h4>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: rgba(40,167,69,0.6);"></div>
+                            <span>Bangunan Kampus</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: none; border: 3px solid #ffc107;"></div>
+                            <span>Batas Kampus</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-section" id="sectionBuildings">
+            <div class="data-table-container">
+                <div class="table-header">
+                    <h2>🏢 Data Gedung</h2>
+                    <button class="btn-add" onclick="alert('Fitur tambah gedung untuk Admin')" id="btnAddBuilding">➕ Tambah Gedung</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Nama Gedung</th>
+                            <th>Lantai</th>
+                            <th>Detail Ruangan</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="buildingsTable"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="content-section" id="sectionUsers">
+            <div class="data-table-container">
+                <div class="table-header">
+                    <h2>👥 Data User</h2>
+                    <button class="btn-add" onclick="alert('Fitur tambah user')">➕ Tambah User</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Username</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTable"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="content-section" id="sectionLabs">
+            <div class="data-table-container">
+                <div class="table-header">
+                    <h2>🔬 Data Laboratorium</h2>
+                    <button class="btn-add" onclick="alert('Fitur tambah lab untuk Admin')" id="btnAddLab">➕ Tambah Lab</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Nama Lab</th>
+                            <th>Gedung</th>
+                            <th>Lantai</th>
+                            <th>Kapasitas</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="labsTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script>
+        var currentUser = null;
+        var currentRole = null;
+        var map = null;
+        var buildingLayers = [];
+        
+        // GeoJSON Data dengan Detail Lengkap sesuai Dokumen
+        var geojsonData = {
+            "type": "FeatureCollection",
+            "features": [
+                { 
+                    "type": "Feature", 
+                    "properties": { 
+                        "UIM_1": "Gedung A (UIM 001)", 
+                        "lantai": "1 & 2",
+                        "lantai_detail": {
+                            "Lantai 1": [
+                                "PUSKOM",
+                                "FAKULTAS HUKUM",
+                                "FAKULTAS AGAMA",
+                                "BAAK",
+                                "BAUK",
+                                "RUANG REKTOR",
+                                "RUANG REKTORAT",
+                                "Gedung A Ruang A1.9 kelas Akuntansi",
+                                "FAKULTAS EKONOMI",
+                                "Gedung A Ruang A1.11 kelas Akuntansi",
+                                "Ruang Layanan Kesehatan",
+                                "Laboratorium kebidanan"
+                            ],
+                            "Lantai 2": [
+                                "Gedung A Ruang A2.6 Kelas Bahasa Inggris",
+                                "RUANG UPT HUMAS DAN PMB",
+                                "FAKULTAS PERTANIAN",
+                                "Gedung A Ruang A2.2 FAK. KIP",
+                                "Gedung A Ruang A2.1 Kelas Fisika"
+                            ]
+                        },
+                        kategori: "gedung_a" 
+                    }, 
+                    "geometry": { "type": "Polygon", "coordinates": [[[ 113.457683095120871, -7.155157993175756 ], [ 113.45840550888451, -7.155259342281521 ], [ 113.458352956243914, -7.155622142519128 ], [ 113.458252662119975, -7.155611860734987 ], [ 113.458296702713113, -7.155338934362386 ], [ 113.458039120756368, -7.155314331506113 ], [ 113.458032459154012, -7.155346094894933 ], [ 113.457956220816243, -7.155337649138584 ], [ 113.457962974940841, -7.155301112060405 ], [ 113.457663943014055, -7.155264391375871 ], [ 113.457683095120871, -7.155157993175756 ]]] } 
+                },
+                { 
+                    "type": "Feature", 
+                    "properties": { 
+                        "UIM_1": "Musholla Al-Muttaqin (UIM 002)", 
+                        "lantai": "1",
+                        "lantai_detail": {
+                            "Lantai 1": [
+                                "Fasilitas ibadah untuk civitas akademika UIM"
+                            ]
+                        },
+                        kategori: "musholla" 
+                    }, 
+                    "geometry": { "type": "Polygon", "coordinates": [[[ 113.458036067521917, -7.1554118249064 ], [ 113.458221112030984, -7.155452584852886 ], [ 113.45819520579974, -7.155571559810996 ], [ 113.45800720057845, -7.155528963841902 ], [ 113.458036067521917, -7.1554118249064 ]]] } 
+                },
+                { 
+                    "type": "Feature", 
+                    "properties": { 
+                        "UIM_1": "Gedung B (UIM 003)", 
+                        "lantai": "1, 2 & 3",
+                        "lantai_detail": {
+                            "Lantai 1": [
+                                "Ruang Perpustakaan",
+                                "Ruang Fak MIPA",
+                                "Lab Komputer",
+                                "Gedung B Ruang B1.4 Fak. Teknik",
+                                "Smart Class",
+                                "LPMI dan LPI",
+                                "Ruang Fak. Kesehatan"
+                            ],
+                            "Lantai 2": [
+                                "Laboratorium Kimia Farmasi",
+                                "Laboratorium bahan Alam",
+                                "Lab Teknologi Farmasi",
+                                "Gedung B Ruang B2.7 kelas PAI",
+                                "Gedung B Ruang B2.8 kelas PAI",
+                                "Gedung B Ruang B2.9 kelas PAI",
+                                "Gedung B Ruang B2.10 kelas TI",
+                                "Gedung B Ruang B2.11 kelas TI",
+                                "Gedung B Ruang B2.12 kelas SI"
+                            ],
+                            "Lantai 3": [
+                                "Gedung B Ruang B3.6 Kelas Matematika",
+                                "Gedung B Ruang B3.7 Kelas Matematika",
+                                "Gedung B Ruang B3.5 kelas Paud",
+                                "Gedung B Ruang B3.4 kelas Paud",
+                                "Gedung B Ruang B3.3 kelas HKI",
+                                "Gedung B Ruang B3.2 kelas HKI",
+                                "Aula Sirajuddin"
+                            ]
+                        },
+                        kategori: "gedung_b" 
+                    }, 
+                    "geometry": { "type": "Polygon", "coordinates": [[[ 113.4580841790943, -7.155591205364373 ], [ 113.458296240101745, -7.155701367330227 ], [ 113.458067525088424, -7.156155234349087 ], [ 113.457933922952805, -7.156091340475674 ], [ 113.45797944390209, -7.155998070092675 ], [ 113.458022744317219, -7.156026344974572 ], [ 113.458157826808929, -7.155800145870333 ], [ 113.458023854584326, -7.155723032513717 ], [ 113.45807520443563, -7.155609198487278 ], [ 113.4580841790943, -7.155591205364373 ]]] } 
+                },
+                { 
+                    "type": "Feature", 
+                    "properties": { 
+                        "UIM_1": "Gedung C (UIM 004)", 
+                        "lantai": "1, 2 & 3",
+                        "lantai_detail": {
+                            "Lantai 1": [
+                                "Asrama putri",
+                                "Ruang Pusat Layanan Terpadu Program Pascasarjana",
+                                "Ruang Diskusi/ Peng Akademik",
+                                "Gedung C Ruang C1.2 Kelas Agribisnis",
+                                "Gedung C Ruang C1.3 Kelas MPI",
+                                "Gedung C Ruang C1.4 Kelas MPI"
+                            ],
+                            "Lantai 2": [
+                                "Gedung C Ruang C2.1 Kelas Hukum",
+                                "Gedung C Ruang C2.2 Kelas Hukum",
+                                "Gedung C Ruang C2.3 Kelas Agrobis Perikanan",
+                                "Gedung C Ruang C2.4 Kelas Agroteknologi"
+                            ],
+                            "Lantai 3": [
+                                "Gedung C Ruang C3.1 Kelas Farmasi",
+                                "Gedung C Ruang C3.2 Kelas Farmasi",
+                                "Gedung C Ruang C3.3 Kelas Farmasi",
+                                "Gedung C Ruang C3.4 Kelas Biologi"
+                            ]
+                        },
+                        kategori: "gedung_c" 
+                    }, 
+                    "geometry": { "type": "Polygon", "coordinates": [[[ 113.457520811086212, -7.154201693485569 ], [ 113.457639609661086, -7.154226663609513 ], [ 113.457650342242601, -7.154210506470648 ], [ 113.457791346158615, -7.15423914867097 ], [ 113.457770621173566, -7.154332419413411 ], [ 113.457669956960601, -7.154316629485913 ], [ 113.457661074824173, -7.154328747337297 ], [ 113.457497680522593, -7.154297901896776 ], [ 113.457462337021354, -7.154439276815383 ], [ 113.457327439574215, -7.15441761157096 ], [ 113.457371942778636, -7.154236486415247 ], [ 113.457428196309436, -7.154229142261447 ], [ 113.45749703286684, -7.154235751999875 ], [ 113.457498513222887, -7.154235017584497 ], [ 113.457520811086212, -7.154201693485569 ]]] } 
+                }
+            ]
+        };
+        
+        var batasKampusData = {
+            "type": "FeatureCollection",
+            "features": [
+                { "type": "Feature", "geometry": { "type": "Polygon", "coordinates": [[[ 113.457913036134542, -7.154284914325414 ], [ 113.457797568360832, -7.154725563290454 ], [ 113.457609563139584, -7.154737313923698 ], [ 113.45755034889666, -7.154615401089076 ], [ 113.457386029372543, -7.15454636609599 ], [ 113.457307570500674, -7.154434735021256 ], [ 113.457292766939929, -7.154336323393254 ], [ 113.457347540114625, -7.15422909875949 ], [ 113.457476331093005, -7.154167407862893 ], [ 113.457600681003143, -7.154190909157818 ], [ 113.457722070201129, -7.154202659804828 ], [ 113.45779016658048, -7.154212941620711 ], [ 113.457913036134542, -7.154284914325414 ]]] } },
+                { "type": "Feature", "geometry": { "type": "Polygon", "coordinates": [[[ 113.457659895246067, -7.155104521060153 ], [ 113.457911555778495, -7.155122146995273 ], [ 113.458447444676935, -7.155222027281428 ], [ 113.458435601828356, -7.155442351364767 ], [ 113.458400073282576, -7.155647987079924 ], [ 113.458311251918218, -7.155830121493118 ], [ 113.458180980583791, -7.156041632333344 ], [ 113.4581188056287, -7.156244330129911 ], [ 113.457938202187805, -7.156129761821173 ], [ 113.457716148776825, -7.155947627527571 ], [ 113.457535545335915, -7.155841872097928 ], [ 113.457414156137915, -7.155741991947424 ], [ 113.457411195425777, -7.155653862384711 ], [ 113.457556270320936, -7.155342471126832 ], [ 113.457659895246067, -7.155104521060153 ]]] } }
+            ]
+        };
+        
+        var users = [
+            { id: 1, username: "admin", password: "admin123", role: "admin", status: "Aktif" },
+            { id: 2, username: "user", password: "user123", role: "user", status: "Aktif" },
+            { id: 3, username: "dosen1", password: "dosen123", role: "user", status: "Aktif" }
+        ];
+        
+        var labs = [
+            { id: 1, nama: "Lab Komputer", gedung: "Gedung B", lantai: 1, kapasitas: 40 },
+            { id: 2, nama: "Lab Kimia Farmasi", gedung: "Gedung B", lantai: 2, kapasitas: 30 },
+            { id: 3, nama: "Lab Teknologi Farmasi", gedung: "Gedung B", lantai: 2, kapasitas: 30 },
+            { id: 4, nama: "Lab Kebidanan", gedung: "Gedung A", lantai: 1, kapasitas: 25 }
+        ];
+        
+        function handleLogin(e) {
+            e.preventDefault();
+            var username = document.getElementById('username').value;
+            var password = document.getElementById('password').value;
+            var role = document.getElementById('userRole').value;
+            
+            var user = users.find(function(u) {
+                return u.username === username && u.password === password && u.role === role;
+            });
+            
+            if (user) {
+                currentUser = username;
+                currentRole = role;
+                document.getElementById('currentUser').textContent = username;
+                document.getElementById('currentRole').textContent = role;
+                document.getElementById('loginPage').style.display = 'none';
+                document.getElementById('mainApp').style.display = 'block';
+                
+                if (role === 'user') {
+                    document.getElementById('tabUsers').style.display = 'none';
+                    document.getElementById('btnAddBuilding').style.display = 'none';
+                    var btnAddLab = document.getElementById('btnAddLab');
+                    if (btnAddLab) btnAddLab.style.display = 'none';
+                }
+                
+                setTimeout(function() {
+                    initMap();
+                    updateBuildingList();
+                    renderTables();
+                }, 100);
+            } else {
+                alert('❌ Username, password, atau role salah!');
+            }
+            return false;
+        }
+        
+        function handleLogout() {
+            if (confirm('Yakin ingin logout?')) {
+                location.reload();
+            }
+        }
+        
+        function switchTab(tab) {
+            var tabs = document.querySelectorAll('.nav-tab');
+            var sections = document.querySelectorAll('.content-section');
+            
+            tabs.forEach(function(t) { t.classList.remove('active'); });
+            sections.forEach(function(s) { s.classList.remove('active'); });
+            
+            event.target.classList.add('active');
+            var sectionId = 'section' + tab.charAt(0).toUpperCase() + tab.slice(1);
+            document.getElementById(sectionId).classList.add('active');
+            
+            if (tab === 'map' && map) {
+                setTimeout(function() { map.invalidateSize(); }, 100);
+            }
+        }
+        
+        function initMap() {
+            console.log('🗺️ Initializing map with real coordinates...');
+            
+            map = L.map('map', {
+                center: [-7.155188, 113.457997],
+                zoom: 17,
+                zoomControl: true
+            });
+            
+            var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            });
+            
+            var googleSat = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                attribution: '© Google'
+            });
+            
+            googleSat.addTo(map);
+            
+            var baseMaps = {
+                "Google Satellite": googleSat,
+                "OpenStreetMap": osmLayer
+            };
+            L.control.layers(baseMaps).addTo(map);
+            L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
+            
+            console.log('✅ Map initialized');
+            
+            // Add campus boundary
+            L.geoJSON(batasKampusData, {
+                style: {
+                    color: '#ffc107',
+                    weight: 4,
+                    fillColor: 'transparent',
+                    fillOpacity: 0,
+                    dashArray: '10, 5'
+                }
+            }).addTo(map);
+            
+            console.log('✅ Campus boundary added');
+            
+            // Add buildings from real GeoJSON
+            geojsonData.features.forEach(function(feature, index) {
+                var props = feature.properties;
+                var coords = feature.geometry.coordinates[0];
+                
+                // Convert coordinates to Leaflet format [lat, lng]
+                var latlngs = coords.map(function(coord) {
+                    return [coord[1], coord[0]];
+                });
+                
+                var color = '#28a745';
+                if (props.kategori === 'musholla') color = '#17a2b8';
+                else if (props.kategori === 'gedung_a') color = '#28a745';
+                else if (props.kategori === 'gedung_b') color = '#20c997';
+                else if (props.kategori === 'gedung_c') color = '#6f42c1';
+                
+                var polygon = L.polygon(latlngs, {
+                    color: '#155724',
+                    weight: 2,
+                    fillColor: color,
+                    fillOpacity: 0.7
+                }).addTo(map);
+                
+                // Create popup content with summary
+                var summaryText = '';
+                var roomCount = 0;
+                
+                if (props.lantai_detail) {
+                    for (var lantaiKey in props.lantai_detail) {
+                        roomCount += props.lantai_detail[lantaiKey].length;
+                    }
+                    summaryText = '<div class="detail-content"><strong>📝 Ringkasan:</strong><br>' +
+                                 'Total <strong>' + roomCount + '</strong> ruangan/fasilitas<br>' +
+                                 'Tersebar di <strong>' + Object.keys(props.lantai_detail).length + '</strong> lantai</div>';
+                } else {
+                    summaryText = '<div class="detail-content"><strong>📝 Detail:</strong><br>Lihat detail lengkap di modal</div>';
+                }
+                
+                var popupContent = '<div class="info-popup">' +
+                                  '<h4>' + props.UIM_1 + '</h4>' +
+                                  '<p><strong>🏗️ Lantai:</strong> ' + props.lantai + '</p>' +
+                                  summaryText +
+                                  '<button class="btn-detail" onclick="showDetailModal(' + index + ')">📋 Lihat Detail Lengkap</button>' +
+                                  '</div>';
+                
+                polygon.bindPopup(popupContent, {
+                    maxWidth: 350,
+                    maxHeight: 400
+                });
+                polygon.bindTooltip(props.UIM_1, { permanent: false, direction: 'top' });
+                
+                polygon.on('mouseover', function() {
+                    this.setStyle({ 
+                        weight: 4, 
+                        fillOpacity: 0.9, 
+                        color: '#ff0000'
+                    });
+                    this.openTooltip();
+                });
+                
+                polygon.on('mouseout', function() {
+                    this.setStyle({ 
+                        weight: 2, 
+                        fillOpacity: 0.7, 
+                        color: '#155724'
+                    });
+                });
+                
+                polygon.on('click', function() {
+                    map.fitBounds(this.getBounds(), { padding: [50, 50] });
+                });
+                
+                buildingLayers.push({ 
+                    id: index + 1,
+                    name: props.UIM_1,
+                    layer: polygon, 
+                    kategori: props.kategori,
+                    properties: props
+                });
+            });
+            
+            console.log('✅ ' + buildingLayers.length + ' buildings added from GeoJSON');
+            
+            // Fit map to show all features
+            setTimeout(function() {
+                var group = new L.featureGroup(buildingLayers.map(function(b) { return b.layer; }));
+                map.fitBounds(group.getBounds(), { padding: [50, 50] });
+            }, 500);
+        }
+        
+        function updateBuildingList() {
+            var list = document.getElementById('buildingList');
+            list.innerHTML = buildingLayers.map(function(b) {
+                return '<li class="building-item" data-kategori="' + b.kategori + '" data-id="' + b.id + '" onclick="zoomToBuilding(' + b.id + ')">' +
+                       '<strong>' + b.name + '</strong>' +
+                       '<small>🏗️ ' + b.properties.lantai + ' Lantai</small></li>';
+            }).join('');
+            
+            document.getElementById('totalBuildings').textContent = buildingLayers.length;
+            document.getElementById('totalBlocks').textContent = buildingLayers.length;
+        }
+        
+        function zoomToBuilding(id) {
+            var building = buildingLayers.find(function(b) { return b.id === id; });
+            if (building && map) {
+                map.fitBounds(building.layer.getBounds(), { padding: [50, 50] });
+                building.layer.openPopup();
+            }
+        }
+        
+        function filterBuildings(filter) {
+            var items = document.querySelectorAll('.building-item');
+            var count = 0;
+            
+            items.forEach(function(item) {
+                if (filter === 'all' || item.dataset.kategori === filter) {
+                    item.style.display = 'block';
+                    count++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+            
+            buildingLayers.forEach(function(building) {
+                if (filter === 'all' || building.kategori === filter) {
+                    building.layer.setStyle({ fillOpacity: 0.7 });
+                } else {
+                    building.layer.setStyle({ fillOpacity: 0.2 });
+                }
+            });
+            
+            document.getElementById('totalBlocks').textContent = count;
+        }
+        
+        function showDetailModal(index) {
+            var building = buildingLayers[index];
+            if (!building) return;
+            
+            var props = building.properties;
+            var modal = document.getElementById('detailModal');
+            var modalTitle = document.getElementById('modalTitle');
+            var modalBody = document.getElementById('modalBody');
+            
+            modalTitle.textContent = props.UIM_1;
+            
+            var detailHTML = '<div class="info-row">' +
+                            '<strong>🏗️ Jumlah Lantai:</strong>' +
+                            '<span>' + props.lantai + '</span>' +
+                            '</div>';
+            
+            // Display detailed room information per floor
+            if (props.lantai_detail) {
+                detailHTML += '<div class="info-row">' +
+                             '<strong>📝 Detail Ruangan:</strong><br><br>';
+                
+                for (var lantaiKey in props.lantai_detail) {
+                    detailHTML += '<div style="margin-bottom: 15px;">';
+                    detailHTML += '<strong style="color: #28a745; font-size: 15px;">🔹 ' + lantaiKey + ':</strong><br>';
+                    
+                    var rooms = props.lantai_detail[lantaiKey];
+                    rooms.forEach(function(room) {
+                        detailHTML += '<span style="display: block; margin-left: 15px; margin-top: 5px;">• ' + room + '</span>';
+                    });
+                    
+                    detailHTML += '</div>';
+                }
+                
+                detailHTML += '</div>';
+            }
+            
+            detailHTML += '<div class="info-row">' +
+                         '<strong>📍 Kategori:</strong>' +
+                         '<span>' + props.kategori.replace('_', ' ').toUpperCase() + '</span>' +
+                         '</div>';
+            
+            modalBody.innerHTML = detailHTML;
+            modal.classList.add('active');
+        }
+        
+        function closeModal() {
+            document.getElementById('detailModal').classList.remove('active');
+        }
+        
+        // Close modal when clicking outside
+        document.getElementById('detailModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+        
+        function renderTables() {
+            var buildingsTable = document.getElementById('buildingsTable');
+            buildingsTable.innerHTML = buildingLayers.map(function(b, i) {
+                // Create summary of rooms
+                var roomSummary = '';
+                if (b.properties.lantai_detail) {
+                    var totalRooms = 0;
+                    for (var lantai in b.properties.lantai_detail) {
+                        totalRooms += b.properties.lantai_detail[lantai].length;
+                    }
+                    roomSummary = totalRooms + ' ruangan/fasilitas';
+                }
+                
+                return '<tr><td>' + (i + 1) + '</td><td>' + b.name + '</td><td>' + b.properties.lantai + '</td><td style="font-size: 11px;">' + roomSummary + '</td><td>' +
+                       (currentRole === 'admin' ? 
+                       '<button class="action-btn btn-edit" onclick="alert(\'Edit: ' + b.name + '\')">✏️ Edit</button>' +
+                       '<button class="action-btn btn-delete" onclick="alert(\'Hapus: ' + b.name + '\')">🗑️ Hapus</button>' : 
+                       '<span style="color:#999;">View Only</span>') + '</td></tr>';
+            }).join('');
+            
+            var usersTable = document.getElementById('usersTable');
+            usersTable.innerHTML = users.map(function(u, i) {
+                return '<tr><td>' + (i + 1) + '</td><td>' + u.username + '</td><td>' + 
+                       '<span style="padding: 5px 10px; background: ' + (u.role === 'admin' ? '#28a745' : '#007bff') + '; color: white; border-radius: 3px;">' + u.role + '</span>' +
+                       '</td><td>' + u.status + '</td><td>' +
+                       '<button class="action-btn btn-edit" onclick="alert(\'Edit: ' + u.username + '\')">✏️ Edit</button>' +
+                       '<button class="action-btn btn-delete" onclick="alert(\'Hapus: ' + u.username + '\')">🗑️ Hapus</button></td></tr>';
+            }).join('');
+            
+            var labsTable = document.getElementById('labsTable');
+            labsTable.innerHTML = labs.map(function(l, i) {
+                return '<tr><td>' + (i + 1) + '</td><td>' + l.nama + '</td><td>' + l.gedung + '</td><td>' + l.lantai + '</td><td>' + l.kapasitas + ' orang</td><td>' +
+                       (currentRole === 'admin' ? 
+                       '<button class="action-btn btn-edit" onclick="alert(\'Edit: ' + l.nama + '\')">✏️ Edit</button>' +
+                       '<button class="action-btn btn-delete" onclick="alert(\'Hapus: ' + l.nama + '\')">🗑️ Hapus</button>' :
+                       '<span style="color:#999;">View Only</span>') + '</td></tr>';
+            }).join('');
+        }
+    </script>
+</body>
+</html>
